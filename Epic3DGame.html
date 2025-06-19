@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 ХРОНИКИ ВСЕЛЕННОЙ - Эпическая 3D Игра 🚀</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 30px #00ffff;
+        }
+        #gameUI {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #ffffff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px #000000;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffff;
+            font-size: 24px;
+            text-align: center;
+        }
+        .health-bar {
+            width: 200px;
+            height: 20px;
+            background: #333;
+            border: 2px solid #fff;
+            margin: 5px 0;
+        }
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            width: 100%;
+            transition: width 0.3s;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #00ffff;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h1>🚀 ХРОНИКИ ВСЕЛЕННОЙ 🚀</h1>
+        <p>Загрузка эпической 3D игры...</p>
+        <div style="font-size: 30px;">⚡🌟💫</div>
+    </div>
+    
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+    
+    <div id="gameUI">
+        <div>Здоровье:</div>
+        <div class="health-bar">
+            <div class="health-fill" id="healthBar"></div>
+        </div>
+        <div>Счёт: <span id="score">0</span></div>
+        <div>Уровень: <span id="level">1</span></div>
+        <div>Оружие: <span id="weapon">Плазменный бластер</span></div>
+    </div>
+
+    <div id="instructions">
+        <div><strong>Управление:</strong></div>
+        <div>WASD - движение | Мышь - обзор | F - спецатака</div>
+        <div>Space - прыжок | Shift - приседание</div>
+        <div>Кликните на экран для захвата мыши</div>
+    </div>
+
+    <script>
+        // 🚀 EPIC 3D GAME ENGINE 🚀
+        class EpicGame3D {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                
+                if (!this.gl) {
+                    alert('WebGL не поддерживается! Обновите браузер.');
+                    return;
+                }
+                
+                this.player = {
+                    x: 0, y: 0, z: -5,
+                    rotX: 0, rotY: 0,
+                    health: 100,
+                    score: 0,
+                    level: 1
+                };
+                
+                this.enemies = [];
+                this.particles = [];
+                this.keys = {};
+                this.time = 0;
+                this.mouseX = 0;
+                this.mouseY = 0;
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupWebGL();
+                this.createShaders();
+                this.setupGeometry();
+                this.setupEvents();
+                this.spawnEnemies();
+                
+                // Hide loading screen
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    this.gameLoop();
+                }, 2000);
+            }
+            
+            setupWebGL() {
+                this.gl.enable(this.gl.DEPTH_TEST);
+                this.gl.enable(this.gl.BLEND);
+                this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+                this.gl.clearColor(0.1, 0.1, 0.2, 1.0);
+                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+            }
+            
+            createShaders() {
+                const vertexShaderSource = `
+                    attribute vec3 position;
+                    uniform mat4 mvpMatrix;
+                    uniform float time;
+                    varying vec3 vPosition;
+                    
+                    void main() {
+                        vec3 pos = position;
+                        pos.y += sin(pos.x * 2.0 + time) * 0.1;
+                        gl_Position = mvpMatrix * vec4(pos, 1.0);
+                        vPosition = pos;
+                    }
+                `;
+                
+                const fragmentShaderSource = `
+                    precision mediump float;
+                    varying vec3 vPosition;
+                    uniform float time;
+                    uniform vec3 color;
+                    
+                    void main() {
+                        vec3 finalColor = color;
+                        float glow = sin(time * 3.0 + vPosition.x * 2.0) * 0.3 + 0.7;
+                        finalColor *= glow;
+                        gl_FragColor = vec4(finalColor, 1.0);
+                    }
+                `;
+                
+                this.program = this.createProgram(vertexShaderSource, fragmentShaderSource);
+            }
+            
+            createProgram(vertexSource, fragmentSource) {
+                const vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER);
+                this.gl.shaderSource(vertexShader, vertexSource);
+                this.gl.compileShader(vertexShader);
+                
+                const fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER);
+                this.gl.shaderSource(fragmentShader, fragmentSource);
+                this.gl.compileShader(fragmentShader);
+                
+                const program = this.gl.createProgram();
+                this.gl.attachShader(program, vertexShader);
+                this.gl.attachShader(program, fragmentShader);
+                this.gl.linkProgram(program);
+                
+                return program;
+            }
+            
+            setupGeometry() {
+                // Create cube vertices
+                const vertices = new Float32Array([
+                    -1, -1,  1,   1, -1,  1,   1,  1,  1,  -1,  1,  1,  // Front
+                    -1, -1, -1,  -1,  1, -1,   1,  1, -1,   1, -1, -1,  // Back
+                ]);
+                
+                const indices = new Uint16Array([
+                    0, 1, 2,   0, 2, 3,   // Front
+                    4, 5, 6,   4, 6, 7,   // Back
+                    0, 4, 7,   0, 7, 1,   // Bottom
+                    2, 6, 5,   2, 5, 3,   // Top
+                    0, 3, 5,   0, 5, 4,   // Left
+                    1, 7, 6,   1, 6, 2    // Right
+                ]);
+                
+                this.vertexBuffer = this.gl.createBuffer();
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
+                
+                this.indexBuffer = this.gl.createBuffer();
+                this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, indices, this.gl.STATIC_DRAW);
+                
+                this.indexCount = indices.length;
+            }
+            
+            setupEvents() {
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                    if (e.code === 'KeyF') {
+                        this.specialAttack();
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+                
+                this.canvas.addEventListener('click', () => {
+                    this.canvas.requestPointerLock();
+                });
+                
+                document.addEventListener('mousemove', (e) => {
+                    if (document.pointerLockElement === this.canvas) {
+                        this.player.rotY += e.movementX * 0.002;
+                        this.player.rotX += e.movementY * 0.002;
+                        this.player.rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.player.rotX));
+                    }
+                });
+            }
+            
+            spawnEnemies() {
+                for (let i = 0; i < 15; i++) {
+                    this.enemies.push({
+                        x: (Math.random() - 0.5) * 20,
+                        y: (Math.random() - 0.5) * 10,
+                        z: -Math.random() * 25 - 10,
+                        health: 100,
+                        speed: Math.random() * 0.03 + 0.01
+                    });
+                }
+            }
+            
+            specialAttack() {
+                // Create explosion effect
+                for (let i = 0; i < 30; i++) {
+                    this.particles.push({
+                        x: this.player.x + (Math.random() - 0.5) * 5,
+                        y: this.player.y + (Math.random() - 0.5) * 5,
+                        z: this.player.z + (Math.random() - 0.5) * 5,
+                        vx: (Math.random() - 0.5) * 0.2,
+                        vy: Math.random() * 0.1,
+                        vz: (Math.random() - 0.5) * 0.2,
+                        life: 1.0
+                    });
+                }
+                
+                // Damage nearby enemies
+                this.enemies = this.enemies.filter(enemy => {
+                    const dx = enemy.x - this.player.x;
+                    const dy = enemy.y - this.player.y;
+                    const dz = enemy.z - this.player.z;
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    
+                    if (dist < 8) {
+                        this.player.score += 150;
+                        return false;
+                    }
+                    return true;
+                });
+                
+                // Play sound effect
+                this.playSound();
+            }
+            
+            playSound() {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.3);
+                    
+                    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } catch(e) {
+                    console.log('Audio not available');
+                }
+            }
+            
+            update() {
+                this.time += 0.016;
+                
+                // Handle input
+                const speed = 0.15;
+                if (this.keys['KeyW']) {
+                    this.player.x += Math.sin(this.player.rotY) * speed;
+                    this.player.z += Math.cos(this.player.rotY) * speed;
+                }
+                if (this.keys['KeyS']) {
+                    this.player.x -= Math.sin(this.player.rotY) * speed;
+                    this.player.z -= Math.cos(this.player.rotY) * speed;
+                }
+                if (this.keys['KeyA']) {
+                    this.player.x -= Math.cos(this.player.rotY) * speed;
+                    this.player.z += Math.sin(this.player.rotY) * speed;
+                }
+                if (this.keys['KeyD']) {
+                    this.player.x += Math.cos(this.player.rotY) * speed;
+                    this.player.z -= Math.sin(this.player.rotY) * speed;
+                }
+                if (this.keys['Space']) {
+                    this.player.y += speed;
+                }
+                if (this.keys['ShiftLeft']) {
+                    this.player.y -= speed;
+                }
+                
+                // Update enemies
+                this.enemies.forEach((enemy, index) => {
+                    const dx = this.player.x - enemy.x;
+                    const dz = this.player.z - enemy.z;
+                    const dist = Math.sqrt(dx*dx + dz*dz);
+                    
+                    if (dist > 0.5) {
+                        enemy.x += (dx / dist) * enemy.speed;
+                        enemy.z += (dz / dist) * enemy.speed;
+                    }
+                    
+                    if (dist < 2) {
+                        this.player.health -= 0.2;
+                    }
+                    
+                    // Auto-attack mechanism
+                    if (Math.random() < 0.003 && dist < 12) {
+                        this.enemies.splice(index, 1);
+                        this.player.score += 100;
+                    }
+                });
+                
+                // Update particles
+                this.particles = this.particles.filter(p => {
+                    p.life -= 0.02;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.z += p.vz;
+                    return p.life > 0;
+                });
+                
+                // Spawn new enemies
+                if (this.enemies.length < 8) {
+                    this.spawnEnemies();
+                }
+                
+                // Update UI
+                this.updateUI();
+            }
+            
+            updateUI() {
+                document.getElementById('healthBar').style.width = Math.max(0, this.player.health) + '%';
+                document.getElementById('score').textContent = this.player.score;
+                document.getElementById('level').textContent = Math.floor(this.player.score / 1000) + 1;
+                
+                if (this.player.health <= 0) {
+                    alert('🎮 Игра окончена! Ваш счёт: ' + this.player.score + ' 🎮\n\nОбновите страницу для новой игры!');
+                    this.player.health = 100;
+                    this.player.score = 0;
+                }
+            }
+            
+            render() {
+                this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+                this.gl.useProgram(this.program);
+                
+                // Create matrices
+                const projMatrix = this.createPerspectiveMatrix();
+                const viewMatrix = this.createViewMatrix();
+                
+                // Render enemies
+                this.enemies.forEach(enemy => {
+                    this.renderCube(enemy.x, enemy.y, enemy.z, 1, [1, 0.3, 0.3], projMatrix, viewMatrix);
+                });
+                
+                // Render particles
+                this.particles.forEach(particle => {
+                    this.renderCube(particle.x, particle.y, particle.z, 0.2, [0, 1, 1], projMatrix, viewMatrix);
+                });
+                
+                // Render environment
+                for (let i = -10; i <= 10; i += 3) {
+                    for (let j = -10; j <= 10; j += 3) {
+                        if (Math.abs(i) + Math.abs(j) > 5) {
+                            this.renderCube(i, -3, j, 0.3, [0.2, 0.5, 1], projMatrix, viewMatrix);
+                        }
+                    }
+                }
+            }
+            
+            renderCube(x, y, z, scale, color, projMatrix, viewMatrix) {
+                const modelMatrix = this.createModelMatrix(x, y, z, scale);
+                const mvpMatrix = this.multiplyMatrices(projMatrix, this.multiplyMatrices(viewMatrix, modelMatrix));
+                
+                const mvpLocation = this.gl.getUniformLocation(this.program, 'mvpMatrix');
+                const timeLocation = this.gl.getUniformLocation(this.program, 'time');
+                const colorLocation = this.gl.getUniformLocation(this.program, 'color');
+                
+                this.gl.uniformMatrix4fv(mvpLocation, false, mvpMatrix);
+                this.gl.uniform1f(timeLocation, this.time);
+                this.gl.uniform3fv(colorLocation, color);
+                
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+                this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                
+                const positionLocation = this.gl.getAttribLocation(this.program, 'position');
+                this.gl.enableVertexAttribArray(positionLocation);
+                this.gl.vertexAttribPointer(positionLocation, 3, this.gl.FLOAT, false, 0, 0);
+                
+                this.gl.drawElements(this.gl.TRIANGLES, this.indexCount, this.gl.UNSIGNED_SHORT, 0);
+            }
+            
+            createPerspectiveMatrix() {
+                const fov = 45 * Math.PI / 180;
+                const aspect = this.canvas.width / this.canvas.height;
+                const near = 0.1;
+                const far = 100;
+                
+                const f = 1 / Math.tan(fov / 2);
+                
+                return new Float32Array([
+                    f / aspect, 0, 0, 0,
+                    0, f, 0, 0,
+                    0, 0, (far + near) / (near - far), -1,
+                    0, 0, (2 * far * near) / (near - far), 0
+                ]);
+            }
+            
+            createViewMatrix() {
+                const cos = Math.cos;
+                const sin = Math.sin;
+                const rx = this.player.rotX;
+                const ry = this.player.rotY;
+                
+                return new Float32Array([
+                    cos(ry), 0, sin(ry), 0,
+                    sin(rx) * sin(ry), cos(rx), -sin(rx) * cos(ry), 0,
+                    -cos(rx) * sin(ry), sin(rx), cos(rx) * cos(ry), 0,
+                    -this.player.x, -this.player.y, -this.player.z, 1
+                ]);
+            }
+            
+            createModelMatrix(x, y, z, scale) {
+                return new Float32Array([
+                    scale, 0, 0, 0,
+                    0, scale, 0, 0,
+                    0, 0, scale, 0,
+                    x, y, z, 1
+                ]);
+            }
+            
+            multiplyMatrices(a, b) {
+                const result = new Float32Array(16);
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        result[i * 4 + j] = 0;
+                        for (let k = 0; k < 4; k++) {
+                            result[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
+                        }
+                    }
+                }
+                return result;
+            }
+            
+            gameLoop() {
+                this.update();
+                this.render();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+        
+        // 🚀 LAUNCH THE EPIC GAME! 🚀
+        window.addEventListener('load', () => {
+            new EpicGame3D();
+        });
+    </script>
+</body>
+</html>
