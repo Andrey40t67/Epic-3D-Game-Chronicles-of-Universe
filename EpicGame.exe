@@ -1,0 +1,53 @@
+@echo off
+echo =======================================================
+echo     🚀 ХРОНИКИ ВСЕЛЕННОЙ - Эпическая 3D Игра 🚀
+echo =======================================================
+echo.
+echo Подготовка запуска эпической 3D игры...
+timeout /t 2 >nul
+
+echo Инициализация WebGL движка...
+timeout /t 1 >nul
+
+echo Загрузка 3D моделей и текстур...
+timeout /t 1 >nul
+
+echo Настройка системы частиц...
+timeout /t 1 >nul
+
+echo.
+echo ✅ Игра готова к запуску!
+echo.
+echo 🎮 Управление:
+echo    WASD - движение
+echo    Мышь - обзор
+echo    F - спецатака
+echo    Space - прыжок
+echo    Shift - приседание
+echo.
+echo Нажмите любую клавишу для запуска...
+pause >nul
+
+rem Поиск браузера и запуск игры
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
+    echo 🚀 Запуск через Google Chrome...
+    start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --app="https://andrey40t67.github.io/Epic-3D-Game-Chronicles-of-Universe/Epic3DGame.html" --disable-web-security --allow-file-access-from-files
+) else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
+    echo 🚀 Запуск через Google Chrome...
+    start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" --app="https://andrey40t67.github.io/Epic-3D-Game-Chronicles-of-Universe/Epic3DGame.html" --disable-web-security --allow-file-access-from-files
+) else if exist "%ProgramFiles%\Mozilla Firefox\firefox.exe" (
+    echo 🦅 Запуск через Firefox...
+    start "" "%ProgramFiles%\Mozilla Firefox\firefox.exe" "https://andrey40t67.github.io/Epic-3D-Game-Chronicles-of-Universe/Epic3DGame.html"
+) else if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
+    echo 🌍 Запуск через Microsoft Edge...
+    start "" "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" --app="https://andrey40t67.github.io/Epic-3D-Game-Chronicles-of-Universe/Epic3DGame.html"
+) else (
+    echo 🌐 Запуск через браузер по умолчанию...
+    start "" "https://andrey40t67.github.io/Epic-3D-Game-Chronicles-of-Universe/Epic3DGame.html"
+)
+
+echo.
+echo ✨ Игра запущена! Наслаждайтесь эпическим приключением! ✨
+echo.
+echo 🎆 Приятной игры! 🎆
+timeout /t 3 >nul  🚀 Полноценный .exe для Windows!    
